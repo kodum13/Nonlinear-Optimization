@@ -1,0 +1,51 @@
+% Matrix A and vector B
+A = [4,0,0,1,0,0;
+0,4,0,0,1,0;
+0,0,5,0,0,1;
+1,0,0,5,0,0;
+0,1,0,0,6,0;
+0,0,1,0,0,6];
+ 
+b = [4,-8,16,1,-2,9]';
+ 
+% Set tolerance, intial x, r, alpha, and direction
+tolerance = 10E-4;
+x = b;
+r = b-A*x;
+d = -r;
+alpha = (r'*d)/(d'*A*d);
+x = x + alpha*d;
+ 
+% Continue iterations while gradient less than tolerance
+% Stopping criteria: gradient of x
+while grad(x)  > tolerance
+    r_old = r
+    r = r - alpha*A*d
+    B = (r'*r)/(r_old'*r_old)
+    d = -r + B*d
+    alpha = (r'*d)/(d'*A*d)
+    x = x + alpha*d
+end
+ 
+% Results: x vector
+x
+ 
+% Function evaluates L-2 norm of vector
+function norm_2 = norm(v)
+    sum_sq = v(1)^2+v(2)^2+v(3)^2;
+    norm_2 = sqrt(sum_sq)
+end
+ 
+% Function calculates the gradient using Ax-b
+function gradient = grad(x)
+    A = [4,0,0,1,0,0;
+0,4,0,0,1,0;
+0,0,5,0,0,1;
+1,0,0,5,0,0;
+0,1,0,0,6,0;
+0,0,1,0,0,6];
+ 
+b = [4,-8,16,1,-2,9]';
+    g = A*x - b;
+    gradient = norm(g)
+end
