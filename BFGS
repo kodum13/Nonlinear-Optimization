@@ -1,0 +1,228 @@
+% BFGS V1
+clear;
+
+% Set tolerance, max iterations, intial values
+identity = [1,0;0,1];
+tolerance = 10E-8;
+ITERMAX= 1000;
+count = 0;
+x_init = [0,0]';
+
+% Calculate initial gradient
+g(:,1) = grad(x_init(1),x_init(2));
+
+% Set initial J, direction, lambda, x, and H matrix
+J = identity;
+d(:,1) = -g(:,1);
+lambda(:,1) = line(g(:,1),x_init,d(:,1))
+x(:,1) = x_init+lambda(:,1)*d(:,1)
+H = cell(1,2)
+H{2} = J.*J';
+
+
+% Continue iterations until the tolerance has been reached or the max iterations ran
+% Stopping criteria: norm(gradient) / ( 1 + |function value at current x|)
+i = 1;
+while norm(g(:,i))/(1+abs(myfunction(x(1,i),x(2,i)))) > tolerance || count < ITERMAX
+    
+    sc = norm(g(:,i))/(1+abs(myfunction(x(1,i),x(2,i))));
+
+    % Update the gradient and the direction using the H matrix    
+    g(:,i+1) = grad(x(1,i),x(2,i));
+    d(:,i) = -H{2}*g(:,i);
+
+    % Use the Goldstein-Armijo criteria to determine lambda
+    lambda(:,i) = line(g(:,i),x(:,i),d(:,i));
+
+    % Find new x using updated lambda and direction
+    x(:,i+1) = x(:,i)+lambda(:,i)*d(:,i);
+
+    % Update the H matrix using new x, gradient, and lambda values
+    s(:,i) = lambda(:,i)*d(:,i);
+    y(:,i) = grad(x(1,i+1),x(2,i+1))-grad(x(1,i),x(2,i));
+    H{1} = H{2};
+    H_second = (s(:,i)*s(:,i)')/(s(:,i)'*y(:,i));
+    H_third = (H{1}*y(:,i)*y(:,i)'*H{1})/(y(:,i)'*H{1}*y(:,i));
+     % Correct H components if NaN to zero
+if isnan(H_second)
+         H_second = 0;
+     end
+     if isnan(H_third)
+         H_third = 0;
+     end
+    H{2} = H{1} + H_second - H_third;
+  cond(H{2})
+
+   % H{2} = H{1} + (s(:,i)*s(:,i)')/(s(:,i)'*y(:,i)) - (H{1}*y(:,i)*y(:,i)'*H{1})/(y(:,i)'*H{1}*y(:,i));
+   % H{2} = H{1} + (s(:,i)-H{1}*y(:,i))/(y(:,i)'*s(:,i))-((s(:,i)-H{1}*y(:,i))'*y(:,i)*s(:,i)*s(:,i)')/((y(:,i)'*s(:,i))^2); 
+    i = i+1;
+    count = count +1;
+end
+
+% Print out results: final x and function value 
+x(:,i-1)
+myfunction(x(1,i-1),x(2,i-1))
+
+% Function to evaluate f(x) at given point
+function func = myfunction(x,y)
+    func = x^2+2*y^2-2*x*y-2*y;
+end
+
+% Function to evaluate gradient at given point
+function gradient = grad(x,y)
+    f1x = 2*x-2*y;
+    f1y = 4*y-2*x-2;
+    gradient = [f1x,f1y];
+end
+
+% Funciton to calculate the norm of the vector
+function norm_2 = norm(v)
+    sum_sq = v(1)^2+v(2)^2;
+    norm_2 = sqrt(sum_sq);
+end
+
+% Function to find acceptable lambda
+% Goldstein-Armijo criteria (uncomment for second criteria)
+function line_search = line(g,x,d)
+        alpha = 10E-4; 
+        n = .9;
+        flag = false;
+        k=0;
+    while flag == false  
+        lambda = .5^k;
+        k=k+1;
+        new_x = x + lambda*d;
+        new_g = grad(new_x(1),new_x(2))';
+        new_f = myfunction(new_x(1),new_x(2));
+        old_f = myfunction(x(1),x(2));
+      
+        if (new_f) <= old_f+alpha*lambda*(d'*g) %
+           %if  (d'*new_g)>= n*(d'*g)  
+            %    disp("passed both")
+                flag=true;
+           %else
+           %     disp("failed second")
+           %end
+        else
+            disp("FAILED")
+        end
+    end
+    line_search = lambda;
+end
+
+% BFGS V2
+clear;
+
+% Set tolerance, max iterations, initial values
+identity = [1,0;0,1];
+tolerance = .01; %10E-8
+ITERMAX= 1000;
+count = 0;
+x_init = [0,0]';
+%x_init = [1,1]';
+
+% Calculate initial gradient
+g(:,1) = grad(x_init(1),x_init(2));
+
+% Set initial J, direction, lambda, x, and H matrix
+J = identity;
+d(:,1) = -g(:,1);
+lambda(:,1) = line(g(:,1),x_init,d(:,1),count)
+x(:,1) = x_init+lambda(:,1)*d(:,1)
+H = cell(1,2)
+H{2} = J.*J';
+
+
+% Continue iterations until the tolerance has been reached or the max iterations ran
+% Stopping criteria: norm(gradient) / (1 + |function value at current x|)
+i = 1;
+q(:,1) = norm2(g(:,i))/(1+abs(myfunction(x(1,i),x(2,i))));
+
+while q > tolerance & count < ITERMAX
+    
+    q(:,i) = norm2(g(:,i))/(1+abs(myfunction(x(1,i),x(2,i))));
+
+    % Update the gradient and the direction using the H matrix 
+    g(:,i+1) = grad(x(1,i),x(2,i));
+    d(:,i) = -H{2}*g(:,i);
+
+    % Use the Goldstein-Armijo criteria to determine lambda
+    lambda(:,i) = line(g(:,i),x(:,i),d(:,i),count);
+
+    % Find new x using updated lambda and direction
+    x(:,i+1) = x(:,i)+lambda(:,i)*d(:,i);
+
+    % Update the H matrix using new x, gradient, and lambda values
+    s(:,i) = lambda(:,i)*d(:,i);
+    y(:,i) = grad(x(1,i+1),x(2,i+1))-grad(x(1,i),x(2,i));
+    H{1} = H{2};
+    H_second = (s(:,i)*s(:,i)')/(s(:,i)'*y(:,i));
+    H_third = (H{1}*y(:,i)*y(:,i)'*H{1})/(y(:,i)'*H{1}*y(:,i));
+
+    % Correct H components if NaN to zero or if inf to zero
+    H_second(isnan(H_second))=0;
+    H_second(~isfinite(H_second))=0;
+    H_third(isnan(H_third))=0;
+    H_third(~isfinite(H_third))=0;
+    H{2} = H{1} + H_second - H_third;
+   % H{2} = H{1} + (s(:,i)*s(:,i)')/(s(:,i)'*y(:,i)) - (H{1}*y(:,i)*y(:,i)'*H{1})/(y(:,i)'*H{1}*y(:,i));
+   % H{2} = H{1} + (s(:,i)-H{1}*y(:,i))/(y(:,i)'*s(:,i))-((s(:,i)-H{1}*y(:,i))'*y(:,i)*s(:,i)*s(:,i)')/((y(:,i)'*s(:,i))^2); 
+     i = i+1;
+    count = count +1;
+end
+
+% Print out results: final x and function value
+x(:,i-1)
+myfunction(x(1,i-1),x(2,i-1))
+
+% Function to evaluate f(x) at given point
+% Set c to 1,10,100
+function func = myfunction(x,y)
+    c = 100;
+    func =  (x-1)^2+(y-1)^2+c*(x^2+y^2-.25)^2;
+end
+
+% Function to evaluate gradient at given point
+% Set c to 1,10,100
+function gradient = grad(x,y)
+    c = 100;
+    f1x = 2*(x-1)+2*c*(x^2+y^2-.25)*2*x;
+    f1y = 2*(y-1)+2*c*(x^2+y^2-.25)*2*y;
+    gradient = [f1x,f1y];
+end
+
+% Function to calculate the L-2 norm of the vector
+function norm_2 = norm2(v)
+    sum_sq = v(1)^2+v(2)^2;
+    norm_2 = sqrt(sum_sq);
+end
+
+% Function to find acceptable lambda
+% Goldstein-Armijo criteria (uncomment for second criteria)
+function line_search = line(g,x,d,count)
+        alpha = 10E-4; 
+        n = .9;
+        flag = false;
+        k=3;
+    while flag == false  
+        lambda = .5^k;
+        k=k+1;
+        new_x = x + lambda*d
+        new_g = grad(new_x(1),new_x(2))';
+        new_f = myfunction(new_x(1),new_x(2))
+        old_f = myfunction(x(1),x(2))
+        
+        if (new_f) <= old_f+alpha*lambda*(d'*g) %
+           %if  (d'*new_g)>= n*(d'*g)  
+            %    disp("passed both")
+                flag=true;
+           %else
+           %     disp("failed second")
+           %end
+        else
+            disp("FAILED")
+        end
+    end
+    k
+    line_search = lambda;
+end
