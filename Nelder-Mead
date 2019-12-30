@@ -1,0 +1,158 @@
+% Simplex (Nelder-Mead Method)
+% Constraint: circle of radius 10
+clear;
+% Initial simplex starting points (x top line, y bottom vector)
+new_simplex = [4,5,4;4,4,5]
+%new_simplex = [-4,-5,-4;-4,-4,-5]
+
+% Set values
+alpha = 2;
+beta = .5;
+gamma = 2;
+epsilon = 1E-8;
+
+% Calculate the initial centroid x0
+x0 = .5*(new_simplex(:,1)+ new_simplex(:,2));
+f_x0 = myfunction(x0(1),x0(2));
+
+% Get initial function values at the starting points
+f_1 = myfunction(new_simplex(1,1),new_simplex(2,1))
+f_2 = myfunction(new_simplex(1,2),new_simplex(2,2))
+f_3 = myfunction(new_simplex(1,3),new_simplex(2,3))
+
+% Set q for the stopping criteria
+q = (((f_1 - f_x0)^2+(f_2 - f_x0)^2+(f_3 - f_x0)^2)/3)^.5
+
+count = 0;
+while q > epsilon
+    flag = false;
+    count = count + 1;
+    % Update x vector with new x and y values
+    x(:,1) = new_simplex(:,1);
+    x(:,2) = new_simplex(:,2);
+    x(:,3) = new_simplex(:,3);
+    % Get the function values at the new x and y points
+    % f_list collects function values for all iterations
+    f_1 = myfunction(x(1,1),x(2,1));
+    f_2 = myfunction(x(1,2),x(2,2));
+    f_3 = myfunction(x(1,3),x(2,3));
+    f = [f_1,f_2,f_3];
+    f_list(count,:)=f;
+    % Identify which function value is the largest and smallest
+    f_x_h = max(f);
+    max_index = find(f==f_x_h);
+    % Guards against errors if multiple maximums
+        if length(max_index) > 1 
+            flag = true;
+            f_index_other = max_index(2);
+            max_index = max_index(1);
+        end
+    x_h(:,1) = [x(1,max_index),x(2,max_index)]; % x and y with max f
+    % Finds the minimum function value
+    f_x_l = min(f);  
+    min_index = find(f==f_x_l);
+    x_l(:,1) = [x(1,min_index),x(2,min_index)]; % x and y with min f
+    % Sets the third in between function value as the other value
+    if flag==true
+        x_o(:,1) = [x(1,f_index_other),x(2,f_index_other)];
+    else
+        f_index_other = find(f~=f_x_h & f~=f_x_l);
+        x_o(:,1) = [x(1,f_index_other),x(2,f_index_other)];
+    end
+
+% Calculates the centroid between the max and min points
+    x0 = .5*(x_l+x_h);
+    f_x0 = myfunction(x0(1),x0(2));
+
+% Finds the reflection point and checks its within bounds
+% If the reflection is outside the circle it pushes it diagonally back in
+    x_r = 2*x0-x_h;
+    f_xr = myfunction(x_r(1),x_r(2));
+        while sqrt(x_r(1)^2 + x_r(2)^2) > 10 
+           if x_r(1) > 0
+              x_r(1) = x_r(1) - .5;
+           else 
+              x_r(1) = x_r(1) + .5;
+           end
+           if x_r(2) > 0
+              x_r(2) = x_r(2) - .5;
+           else
+              x_r(2) = x_r(2) + .5;
+           end
+        end
+        
+% Checks for expansion or contraction
+    if f_x_l < f_xr && f_xr < f_x_h
+        % Reflection set for x_h
+        x_h(:,1) = x_r;
+    end
+    if f_xr <= f_x_l
+        % First expansion
+        % Checks if the expansion point is within bounds
+        x_e = 2*x_r - x0;
+            while sqrt(x_e(1)^2 + x_e(2)^2) > 10 
+                if x_e(1) > 0
+                    x_e(1) = x_e(1) - .5;
+                else 
+                    x_e(1) = x_e(1) + .5;
+                end
+                if x_e(2) > 0
+                    x_e(2) = x_e(2) - .5;
+                else
+                    x_e(2) = x_e(2) + .5;
+                end
+            end
+        f_xe = myfunction(x_e(1),x_e(2));
+        if f_xe < f_x_l
+            % Second expansion
+            % Checks if the expansion point is within bounds
+            x_e = 2*x_e - x0;
+                while sqrt(x_e(1)^2 + x_e(2)^2) > 10 
+                    if x_e(1) > 0
+                        x_e(1) = x_e(1) - .5;
+                    else 
+                        x_e(1) = x_e(1) + .5;
+                    end
+                    if x_e(2) > 0
+                        x_e(2) = x_e(2) - .5;
+                    else
+                        x_e(2) = x_e(2) + .5;
+                    end
+                end
+        end
+        % Sets expansion point as x_h
+        x_h(:,1) = x_e;
+    elseif f_xr > f_x_h
+        % Contraction
+        x_c = beta*x_r+(1-beta)*x0;
+        f_x_c = myfunction(x_c(1),x_c(2));
+        if f_x_c < min([f_x_h,f_xr])
+            % Sets constraction point as x_h if function value 
+            % less than function at max point and reflection point
+            x_h(:,1) = x_c;
+        else
+            % Second contraction
+            % Sets constraction point as x_h
+            x_c = beta*x_c+(1-beta)*x0;
+            f_x_c = myfunction(x_c(1),x_c(2));
+            x_h(:,1) = x_c;
+        end
+    end
+    q = (((f_1 - f_x0)^2+(f_2 - f_x0)^2+(f_3 - f_x0)^2)/3)^.5;
+    new_simplex = [x_h(:,1),x_l(:,1),x_o(:,1)];
+end
+
+% Final results: iterations, q, ending simplex, function values, x and y
+count
+q
+x
+f_list
+disp("final x and y values:")
+mean(x(1,:))
+mean(x(2,:))
+
+% Function: uncomment to run other function
+function func = myfunction(x,y)
+    %func =  x-y+2*x^2+2*x*y;
+    func = x^2 + 2*y^2 - 2*x*y - 2*y;
+end
