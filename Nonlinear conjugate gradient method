@@ -1,0 +1,94 @@
+% Set initial x vector
+x(:,1) = [1,1,1,1]';
+
+% Set count, max iterations, tolerance
+count = 0;
+ITERMAX = 1000;
+tolerance = 10E-8;
+
+% Initialize direction vector, gradient, x value
+r(:,1) = -grad(x(:,1));
+d(:,1) = [0,0,0,0];
+beta = 0;
+d(:,2) = r(:,1);
+x(:,2) = x(:,1) + line(-r(:,1),x(:,1),d(:,2))*d(:,2);
+g(:,1) =  r(:,1);
+
+% Continue iterations until tolerance has been reached or max iterations ran
+% Stopping criteria: L-2 norm of x vector
+i = 2;
+while norm(x(:,i))  > tolerance && count < ITERMAX
+    q(:,i) = norm(x(:,i));
+
+    % Update gradient
+    g(:,i) = grad(x(:,i));
+
+    % Use new gradient for beta and direction   
+    B(i) = (g(:,i)'*g(:,i))/(g(:,i-1)'*g(:,i-1));
+    d(:,i) = -g(:,i) + B(i)*d(:,i-1);
+
+    % Get new lambda and update x
+    lambda(:,i) = line(g(:,i),x(:,i),d(:,i));
+    x(:,i+1) = x(:,i) + lambda(:,i)*d(:,i);
+
+    i = i+1;
+    f_list(:,i) = func(x(:,i));
+    count = count + 1;
+end
+
+% Print results: x and function values
+x(:,i-1);
+f_list(:,i);
+
+% Function to calculate the L-2 norm
+function norm_2 = norm(v)
+    g = grad(v);
+    sum_sq = g(1)^2+g(2)^2+g(3)^2+g(4)^2;
+    norm_2 = sqrt(sum_sq)
+end
+
+% Function to calcualte the gradient at given x
+function gradient = grad(x)
+    x1 = 2*(x(1)-2*x(2)^2);
+    x2 = -8*(x(1)-2*x(2)^2)+2*(x(2)-2*x(3));
+    x3 = 2*(x(3)-2*x(4)^2);
+    x4 = -8*(x(3)-2*x(4)^2);
+    gradient = [x1,x2,x3,x4];
+end
+
+% Function to evaluate f(x) at given x
+function func_res = func(x)
+    n = 4;
+    x3 = (x(3) - 2*x(4)^2)^2;
+    x2 = (x(2) - 2*x(3)^2)^2;
+    x1 = (x(1) - 2*x(2)^2)^2;
+    func_res = x3+x2+x1;
+end
+
+% Goldstein-Armijo line search for lambda   
+function line_search = line(g,x,d)
+        alpha = 10E-4; 
+        n = .9;
+        flag = false;
+        k=0;
+    while flag == false  
+        lambda = .75^k
+        k=k+1;
+        new_x = x + lambda*d;
+        new_g = grad(new_x)';
+        new_f = func(new_x);
+        old_f = func(x);
+      
+        if (new_f) <= old_f+alpha*lambda*(d'*g) %
+           %if  (d'*new_g)>= n*(d'*g)  
+            %    disp("passed both")
+                flag=true;
+           %else
+           %     disp("failed second")
+           %end
+        else
+            disp("FAILED")
+        end
+    end
+    line_search = lambda;
+end
