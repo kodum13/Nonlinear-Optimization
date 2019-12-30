@@ -1,0 +1,211 @@
+clc;
+
+clear;
+% Initialize constraints, function, weights, returns, covariance matrix
+syms x x1 x2 x3 x4 u1 u2 u3 u4 u5 u6 f F xx1 xx2 xx3 xx4
+% Allocate space for the larger arrays
+x_init = zeros(4,31);
+g1_value = zeros(1,31);
+g2_value = zeros(1,31);
+g3_value = zeros(1,31);
+g4_value = zeros(1,31);
+g5_value = zeros(1,31);
+g6_value = zeros(1,31);
+% Set inital step length w, max number of iterations n, 
+% inital return lower bound R, x array
+w = .0001;
+n = 20;
+R(1) = .04;
+add = 3;
+xval=[];
+x = [x1,x2,x3,x4].';
+% Covariance matrix cov(returns)
+C = [0.0031,    0.0042,    0.0016 ,   0.0014;
+    0.0042 ,   0.0611 ,  -0.0018 ,  -0.0025;
+    0.0016  , -0.0018 ,   0.0029  ,  0.0032;
+    0.0014 ,  -0.0025  ,  0.0032   , 0.0056];
+% Original function to minimize variance
+f = .5*x'*C*x;
+% Original return data
+ret_a = [.0063,.0015,.01861,.0356,.1011,.0911,.0981,.1009,.0670,.1819];
+ret_b = [0.0066,0.00762,-0.0248,-0.0551,0.0112,0.0019,0.7891,0.0912,0.0781,0.0911];
+ret_c = [0.0107,-0.0684,0.02876,0.032,0.1181,-0.01123,-0.00121,0.01231,0.0791,0.0812];
+ret_d = [0.0234,-0.0753,0.08761,0.0315,0.1039,-0.1009,-0.0121,0.0978,0.0782,0.1012];
+A = [ret_a;ret_b;ret_c;ret_d]'
+% Expected rate of return for asset, calculates mu
+for i=1:length(ret_a)
+    r_a(i) = 1 + ret_a(i);
+    r_b(i) = 1 + ret_b(i);
+    r_c(i) = 1 + ret_c(i);
+    r_d(i) = 1 + ret_d(i);
+end
+mu_a = prod(r_a)^.1-1;
+mu_b = prod(r_b)^.1-1;
+mu_c = prod(r_c)^.1-1;
+mu_d = prod(r_d)^.1-1;
+mu = [mu_a;mu_b;mu_c;mu_d]
+% Iterates through different starting points
+for y=1:16
+    start = [1,0,0,0;
+    0,1,0,0;
+    0,0,1,0;
+    0,0,0,1;
+    0.25,0.25,0.25,0.25;
+    0.33,0.33,0.33,0.01;
+    0.01,0.33,0.33,0.33;
+    0.33,0.01,0.33,0.33;
+    0.33,0.33,0.01,0.33;
+    0.5,0.2,0.3,0;
+    0,0.5,0.2,0.3;
+    0.3,0,0.5,0.2;
+    0.2,0.3,0,0.5;
+    0.5,0.5,0,0;
+    0,0,0.5,0.5;
+    0,0.5,0.5,0;
+    0.5,0,0,0.5;
+    .1,.4,.1,.4;
+    .4,.1,.4,.1;
+    .5,0,.25,.25;
+    .25,.25,0,.5;
+    .25,0,.5,.25;
+    .25,.5,0,.25];
+% Goes through different weights of the lower bound return constraint
+    for z=1:3
+        % Calculates the shift for the penalty function 
+        % based on the current lowerst return
+        add = (log(1/R(z)));
+        % Penalty functions for the constraints
+        % g1-4 for x >= 0 and x <=1
+        % g5 for summing x to 1
+        % g6 for lower bound return
+        g1 = sum((2*x1-1)^6);
+        g2 = sum((2*x2-1)^6);
+        g3 = sum((2*x3-1)^6);
+        g4 = sum((2*x4-1)^6);
+        g5 = .01*(sum(x)-1)^2;
+        g6 = sum(-(log(mu'*x)+add));
+        % Unconstrained function f(x) + weights*(penalty function) 
+        F =  f+(u1)*(g1) + (u2)*(g2) + (u3)*(g3) + (u4)*(g4) + u5*g5 + u6*g6;
+        k = 1;
+        % Run for 3 iterations (weights become too large)
+        for j=1:3
+            % Get starting point from list
+            x_init(:,1+n*(j-1)) = start(y,:);
+            % Set weights increasing each iteration
+            u1 = 10^(j-1);
+            u2 = 10^(j-1);
+            u3 = 10^(j-1);
+            u4 = 10^(j-1);
+            u5 = 10^(j);
+            u6 = z*10^(j);
+            % Update function with new weights for the penalty terms
+            F =  f+(u1)*(g1) + (u2)*(g2) + (u3)*(g3) + (u4)*(g4) + u5*g5 + u6*g6;
+   
+            % Gradient of unconstrained function
+            grad_x1 = diff(F,x1);
+            grad_x2 = diff(F,x2);
+            grad_x3 = diff(F,x3);
+            grad_x4 = diff(F,x4);
+            % Run Steepest gradient algorithm for n iterations
+            for k=1:n
+                % Calculate the gradient value at the current x1, x2, x3, x4 values
+                grad_x1_at = double(subs(grad_x1,[x1,x2,x3,x4],[x_init(1,k+4*(j-1)),x_init(2,k+4*(j-1)),x_init(3,k+4*(j-1)),x_init(4,k+4*(j-1))]));
+                grad_x2_at = double(subs(grad_x2,[x1,x2,x3,x4],[x_init(1,k+4*(j-1)),x_init(2,k+4*(j-1)),x_init(3,k+4*(j-1)),x_init(4,k+4*(j-1))]));
+                grad_x3_at = double(subs(grad_x3,[x1,x2,x3,x4],[x_init(1,k+4*(j-1)),x_init(2,k+4*(j-1)),x_init(3,k+4*(j-1)),x_init(4,k+4*(j-1))]));
+                grad_x4_at = double(subs(grad_x4,[x1,x2,x3,x4],[x_init(1,k+4*(j-1)),x_init(2,k+4*(j-1)),x_init(3,k+4*(j-1)),x_init(4,k+4*(j-1))]));
+                gradient = [grad_x1_at,grad_x2_at,grad_x3_at,grad_x4_at];
+                gradient= double(gradient);
+    
+                % Calculate the direction and step length, update the x
+                % values, check function value
+                delta(:,k) = -gradient';
+                alpha = 1*.9^k;
+                %alpha(k) = -(gradient*delta(:,k))/(delta(:,k)'*C*delta(:,k));
+                x_init(:,k+n*(j-1)+1) = x_init(:,k+n*(j-1))' + (w)*alpha*delta(:,k)';
+                f_new = subs(F,[x1,x2,x3,x4,u1,u2,u3,u4,u5,u6], [x_init(1,k+n*(j-1)),x_init(2,k+n*(j-1)),x_init(3,k+n*(j-1)),x_init(4,k+n*(j-1)),u1,u2,u3,u4,u5,u6]);
+                F_val(:,k+n*(j-1)+1) = double(f_new);
+                % Calculate contribution from each penalty term
+                g1_val(:,k+n*(j-1)+1) = double(subs(g1,[x1,x2,x3,x4],[x_init(1,k+n*(j-1)),x_init(2,k+n*(j-1)),x_init(3,k+n*(j-1)),x_init(4,k+n*(j-1))]));
+                g2_val(:,k+n*(j-1)+1) = double(subs(g2,[x1,x2,x3,x4],[x_init(1,k+n*(j-1)),x_init(2,k+n*(j-1)),x_init(3,k+n*(j-1)),x_init(4,k+n*(j-1))]));
+                g3_val(:,k+n*(j-1)+1) = double(subs(g3,[x1,x2,x3,x4],[x_init(1,k+n*(j-1)),x_init(2,k+n*(j-1)),x_init(3,k+n*(j-1)),x_init(4,k+n*(j-1))]));
+                g4_val(:,k+n*(j-1)+1) = double(subs(g4,[x1,x2,x3,x4],[x_init(1,k+n*(j-1)),x_init(2,k+n*(j-1)),x_init(3,k+n*(j-1)),x_init(4,k+n*(j-1))]));
+                g5_val(:,k+n*(j-1)+1) = double(subs(g5,[x1,x2,x3,x4],[x_init(1,k+n*(j-1)),x_init(2,k+n*(j-1)),x_init(3,k+n*(j-1)),x_init(4,k+n*(j-1))]));
+                g6_val(:,k+n*(j-1)+1) = double(subs(g6,[x1,x2,x3,x4],[x_init(1,k+n*(j-1)),x_init(2,k+n*(j-1)),x_init(3,k+n*(j-1)),x_init(4,k+n*(j-1))]));
+                drawnow;
+                % Make sure the x values are between 0 and 1
+                if (sum(x_init(:,k+n*(j-1)+1))>1)
+                    count0 = sum(x_init(:,k+n*(j-1)+1));
+                    push = (sum(x_init(:,k+n*(j-1)+1))-1)/(4-count0);
+                    x_init(:,k+n*(j-1)+1) = x_init(:,k+n*(j-1)+1) - [push,push,push,push]';
+                end
+                if (sum(x_init(:,k+n*(j-1)+1))<.98)
+                    push = (1-sum(x_init(:,k+n*(j-1)+1)))/(8);
+                    x_init(:,k+n*(j-1)+1) = x_init(:,k+n*(j-1)+1) + [push,push,push,push]';
+                end
+                for b=1:4
+                    if x_init(b,k+n*(j-1)+1) < 0
+                    x_init(b,k+n*(j-1)+1) = 0;
+                    end
+                end
+            end
+        end
+    % Update the lower bound return
+    l = length(x_init);
+    R(z+1) = mu'*x_init(:,l);
+    xval = [xval double(x_init)];
+    
+    end
+end
+% Calculate the returns and variances for each x
+for t=1:length(xval)
+   returns(t) = mu'*xval(:,t);
+   variance(t) = .5*xval(:,t)'*C*xval(:,t);
+end
+% Plot the standard deviation versus returns
+hold on;
+plot(sqrt(variance),returns)
+% Create matrix of x values, returns, variance, standard deviations
+all = [xval', returns', variance', sqrt(variance)']
+% Sort the variances into 20 buckets
+[yo, es] = discretize(all(:,7),20);
+bin_all= [all, yo];
+[~,idx] = sort(bin_all(:,8));
+sorted_all = bin_all(idx,:);
+% Find the largest return for each variance bucket
+max_bin = [];
+for si=1:20
+    if max(sorted_all(:,8)==si) ==0
+        return;
+    end
+    col_ind = find(sorted_all(:,8)==si);
+    slice = sorted_all(col_ind,:);
+    [~,slice_idx] = sort(slice(:,5),"descend");
+    max_ret = slice(slice_idx(1),5);
+    max_sd = slice(slice_idx(1),7);
+    x1 = slice(slice_idx(1),1);
+    x2 = slice(slice_idx(1),2);
+    x3 = slice(slice_idx(1),3);
+    x4 = slice(slice_idx(1),4);
+    max_bin = [max_bin;max_ret,max_sd,x1,x2,x3,x4];
+end
+% Fit lines to the efficient frontier
+% Plot the efficient frontier with the optimization points
+    clear plot
+ coeffs = polyfit(max_bin(1:5,1),max_bin(1:5,2),1)
+ fittedX = linspace(min(max_bin(1:5,1)), max(max_bin(1:5,1)),200);
+ fittedY = polyval(coeffs, fittedX);
+ coeffs_2 = polyfit(max_bin(5:17,1),max_bin(5:17,2),1)
+ fittedX_2 = linspace(min(max_bin(5:17,1)), max(max_bin(5:17,1)),200);
+ fittedY_2 = polyval(coeffs_2, fittedX_2);
+ plot(fittedY,fittedX)
+ plot(fittedY_2,fittedX_2)
+ hold off;
+ 
+% Find x values allocation from given return and variance combination
+ syms xx1 xx2 xx3 xx4
+ eq1=mu'*[xx1, xx2, xx3, xx4].';
+ eq2 = xx1 + xx2 + xx3 + xx4;
+ eq3 = .5*[xx1, xx2, xx3, xx4]*C*[xx1, xx2, xx3, xx4]';
+ mu_final = 0.0307;
+ var_final = 0.0229 ^2;
+ [s1,s2,s3,s4]=vpasolve([eq1==mu_final,eq3 ==var_final],[xx1, xx2, xx3, xx4],[x1,x2,x3,x4])
