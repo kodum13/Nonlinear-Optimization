@@ -1,0 +1,74 @@
+clc;
+clear;
+% Initialize starting point, function, constraints, weights
+syms x y rh rg f g1 g2 g0 F grad_x grad_y
+u1 = 2;
+u2 = 2;
+u3 = 2;
+u4 = 2;
+% Original function to minimize
+f = x^2+y^2-6*x-8*y+10
+% First constraint g1 <=0 
+g1 = 4*x^2+y^2-16 
+% Second constraint g2 <= 0 
+g2 = 3*x+5*y-4 
+% Non-negativity constraints
+g3 = -x
+g4 = -y
+C = 10E-8;
+% Unconstrained function f(x) + u*C*exp(constraint)
+    F = f + u1*(C*exp(g1)) + u2*(C*exp(g2)) + u3*(C*exp(g3)) + u4*(C*exp(g4))
+% Set initial guess for the two variables x1 as x and x2 as y
+    x_val(1) = .5;
+    y_val(1) = .5;
+% Run for 5 iterations (weights become too large)
+for j=1:5
+    % Set weights increasing each iteration
+    u1 = 10^(j-1)
+    u2 = 10^(j-1)
+    u3 = 10^(j-1)
+    u4 = 10^(j-1)
+    % Update function with new weights for the penalty terms
+    F = f + (C*exp(g1*u1)) + (C*exp(u2*g2)) + (C*exp(u3*g3)) + (C*exp(u4*g4))
+% Gradient of unconstrained function
+    grad_x = diff(F,x);
+    grad_y = diff(F,y);
+% Calculate the partial derivatives
+    f1x = diff(grad_x,x);
+    f1y = diff(grad_x,y);
+    f2x = diff(grad_y,x);
+    f2y = diff(grad_y,y);
+% Print the gradient 
+    partials_initial = [f1x  f1y; f2x f2y];
+% Run Newton's algorithm for 10 iterations
+for k=1:10
+    % Calculate the function values at the current x1 and x2 values
+    % Put the two values into a list to be used for matrix multiplication later
+    f_new = subs(F,[x,y,u1,u2,u3,u4], [x_val(k),y_val(k),u1,u2,u3,u4]);
+    
+    grad_x_at = subs(grad_x,[x,y],[x_val(k), y_val(k)]);
+    grad_y_at = subs(grad_y,[x,y],[x_val(k), y_val(k)]);
+    gradient = [grad_x_at,grad_y_at];
+    % Evaluate the partial derivatives at the current x1 and x2 values
+    p1x = subs(f1x,[x,y], [x_val(k),y_val(k)]);
+    p1y = subs(f1y,[x,y], [x_val(k),y_val(k)]);
+    p2x = subs(f2x,[x,y], [x_val(k),y_val(k)]);
+    p2y = subs(f2y,[x,y], [x_val(k),y_val(k)]);
+    % Put the values in a matrix form and find the inverse matrix
+    partials = [p1x  p1y; p2x p2y];
+    inv_partials = inv(partials);
+    
+    % Calculate the deltas be multiplying the inverse the function values from the first step in the loop
+    delta(:,k) = -(inv_partials)*gradient';
+    
+    % Set the new x1 and x2 values by adding the corresponding delta to the previous x1 and x2 value
+    x_val(k+1) = x_val(k) + delta(1,k);
+    y_val(k+1) = y_val(k) + delta(2,k);
+end
+    % Print the final x1 and x2 values 
+    % Print the final value to check = 0
+    x1 = x_val(k+1)
+    x2 = y_val(k+1)
+    final_value_f1(j) = double(subs(F,[x,y,u1,u2,u3,u4],[x_val(k+1),y_val(k+1),u1,u2,u3,u4]))
+end
+ final_value_f1 = double(subs(F,[x,y,u1,u2,u3,u4],[x_val(k+1),y_val(k+1),u1,u2,u3,u4]))
